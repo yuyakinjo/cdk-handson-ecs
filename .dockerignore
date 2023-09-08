@@ -1,4 +1,6 @@
+node_modules
 .gitignore
 dockerfile
 LICENSE.md
 README.md
+cdk
