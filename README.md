@@ -34,7 +34,7 @@ bun init
 ```
 
 ```sh
-bun run index.ts # Hello via Bun!
+bun run index.ts
 ```
 
 ## 3. update index.ts
