@@ -1,16 +1,39 @@
-import * as cdk from 'aws-cdk-lib';
+import { Fn, Stack, StackProps } from 'aws-cdk-lib';
+import { Vpc } from 'aws-cdk-lib/aws-ec2';
+import {CpuArchitecture,EcrImage,OperatingSystemFamily} from 'aws-cdk-lib/aws-ecs'; // prettier-ignore
+import { ApplicationLoadBalancedFargateService } from 'aws-cdk-lib/aws-ecs-patterns';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { join } from 'path';
 
-export class CdkStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+export interface CdkStackProps extends StackProps {}
+
+export class CdkStack extends Stack {
+  constructor(scope: Construct, id: string, props: CdkStackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    const localDockerfile = join(__dirname, '../../');
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'CdkQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    const image = EcrImage.fromAsset(localDockerfile);
+
+    const { targetGroup } = new ApplicationLoadBalancedFargateService(
+      this,
+      ApplicationLoadBalancedFargateService.name,
+      {
+        vpc: Vpc.fromLookup(this, 'Vpc', { vpcId: 'vpc-0f49b2a7cf4b3520e' }),
+        taskImageOptions: { image, containerPort: 3000 },
+        circuitBreaker: { rollback: true },
+        // apple silicon mac　で docker build の方は下記を追加
+        runtimePlatform: {
+          cpuArchitecture: CpuArchitecture.ARM64,
+          operatingSystemFamily: OperatingSystemFamily.LINUX,
+        },
+      }
+    );
+
+    targetGroup.configureHealthCheck({
+      port: '3000',
+      path: '/',
+    });
   }
 }
