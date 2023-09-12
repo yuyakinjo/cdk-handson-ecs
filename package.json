@@ -3,9 +3,15 @@
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
-    "bun-types": "latest"
+    "@types/pg": "^8.10.2",
+    "bun-types": "latest",
+    "drizzle-kit": "^0.19.13"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.28.6",
+    "pg": "^8.11.3"
   }
 }
