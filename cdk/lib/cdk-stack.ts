@@ -27,6 +27,7 @@ export class CdkStack extends Stack {
         vpc: Vpc.fromLookup(this, Vpc.name, { vpcId }),
         taskImageOptions: { image, containerPort: 3000 },
         circuitBreaker: { rollback: true },
+        enableExecuteCommand: true,
         // apple silicon mac　で docker build の方は下記を追加
         runtimePlatform: {
           cpuArchitecture: CpuArchitecture.ARM64,
