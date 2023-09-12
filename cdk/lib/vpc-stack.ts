@@ -1,9 +1,11 @@
 import { Construct } from 'constructs';
-import { CfnOutput, Fn, Stack } from 'aws-cdk-lib';
+import { CfnOutput, Stack } from 'aws-cdk-lib';
 import { Vpc } from 'aws-cdk-lib/aws-ec2';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+
+export const vpcIdParameterName = 'VpcStackOfVpcId';
 
 export class VpcStack extends Stack {
-  vpc: Vpc;
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
@@ -19,9 +21,9 @@ export class VpcStack extends Stack {
       }),
     });
 
-    new CfnOutput(this, `${Vpc.name}IdOf${VpcStack.name}`, {
-      value: vpc.vpcId,
-      exportName: 'VpcStackOfVpcId',
+    new StringParameter(this, `${StringParameter.name}VpcId`, {
+      parameterName: vpcIdParameterName,
+      stringValue: vpc.vpcId,
     });
   }
 }
