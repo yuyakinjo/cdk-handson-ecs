@@ -32,8 +32,7 @@ while (!isConnected && retries < maxRetries) {
       console.log('db connected successfully');
     })
     .catch(async () => {
-      console.error('db connection error');
-      console.error('retry db connection...after 1s');
+      console.error('db connection error. retry db connection...');
       await sleep(1000);
       isConnected = false;
       retries++;
