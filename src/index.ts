@@ -1,23 +1,6 @@
 import { serve, sleep } from 'bun';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { Pool } from 'pg';
+import { db, pool } from './db/client';
 import { todos } from './db/schema';
-
-const pool = new Pool({
-  host: 'psql',
-  port: 5432,
-  user: 'postgres',
-  password: 'postgres',
-  database: 'zon100',
-});
-
-const db = drizzle(pool);
-
-pool.once('connect', async () => {
-  await migrate(db, { migrationsFolder: './src/db/migrations' });
-  console.log('First migration complete');
-});
 
 let isConnected = false;
 let retries = 0;
@@ -29,11 +12,12 @@ while (!isConnected && retries < maxRetries) {
     .connect()
     .then(() => {
       isConnected = true;
+      retries = 0;
       console.log('db connected successfully');
     })
     .catch(async () => {
       console.error('db connection error. retry db connection...');
-      await sleep(1000);
+      await sleep(2000);
       isConnected = false;
       retries++;
     });
