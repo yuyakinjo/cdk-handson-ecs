@@ -26,7 +26,11 @@ export class CdkStack extends Stack {
       ApplicationLoadBalancedFargateService.name,
       {
         vpc,
-        taskImageOptions: { image, containerPort: 3000 },
+        taskImageOptions: {
+          image,
+          containerPort: 3000,
+          command: ['bun', '--watch', 'src/index.ts'],
+        },
         circuitBreaker: { rollback: true },
         enableExecuteCommand: true,
         // apple silicon mac　で docker build の方は下記を追加
