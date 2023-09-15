@@ -1,0 +1,29 @@
+version: '3.9'
+services:
+  psql:
+    container_name: postgres
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: zon100
+    ports:
+      - 5432:5432
+
+  server:
+    container_name: server
+    build:
+      context: .
+    ports:
+      - 3000:3000
+    volumes:
+      - ./:/usr/src/
+      - ignore:/usr/src/cdk
+    depends_on:
+      - psql
+    init: true
+    command: ['bun', '--watch', 'src/index.ts']
+
+volumes:
+  ignore:
