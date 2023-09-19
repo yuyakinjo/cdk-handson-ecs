@@ -44,7 +44,7 @@ bun init
 ```
 
 ```sh
-bun run index.ts
+bun run src/index.ts
 ```
 
 ### チェックポイント
@@ -70,7 +70,7 @@ console.log(`Listening on http://localhost:${server.port}...`);
 ```
 
 ```sh
-bun run --watch index.ts
+bun run --watch ./src/index.ts
 ```
 
 ### チェックポイント
@@ -333,6 +333,10 @@ bash
 ただ、このままでは、ターミナル越しで vim もなく、コードを編集することができません。
 vscode tunnel を使って、ローカルの vscode で編集できるようにします。
 
+## vscode cli のダウンロード
+
+https://qiita.com/k_bobchin/items/e7892c744f643573d3d9
+
 ### Intel Mac の場合
 
 ```sh
@@ -376,13 +380,115 @@ https://vscode.dev/tunnel/bun-server/usr/src
 - [ ] vscode remote extensionpack をインストールした
 - [ ] アタッチしたコンテナの`index.ts`を編集できた
 
+## 13. Prisma を追加する
+
+今回は ORM に、`Prisma` を使うので、パッケージを追加します。
+
+```sh
+bun add prisma
+```
+
+```sh
+bun prisma init --datasource-provider=postgresql
+```
+
+`.env` の内容を変更します。
+
+```sh
+DATABASE_URL="postgresql://postgres:postgres@psql:5432/zon100?schema=public"
+```
+
+`prisma/schema.prisma`を変更します。
+
+```schema.prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String?
+  todos     Todo[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Todo {
+  id        String   @id @default(uuid())
+  title     String   @unique
+  content   String?
+  completed Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+```
+
 ## 12. Postgres コンテナ を追加する
 
-## 13. Drizzle ORM を追加する
+複数コンテナを使用するので、`docker-compose`を使用します。
+
+```sh
+touch docker-compose.yml
+```
+
+```docker-compose.yml
+# docker-compose.yml
+
+version: '3.9'
+services:
+  psql:
+    container_name: postgres
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: message
+    ports:
+      - 5432:5432
+
+  server:
+    container_name: server
+    build:
+      context: .
+    ports:
+      - 3000:3000
+    volumes:
+      - ./:/usr/src/
+      - ignore:/usr/src/cdk
+    depends_on:
+      - psql
+    init: true
+    restart: unless-stopped
+
+volumes:
+  ignore:
+```
+
+docker を立ち上げます
+
+```sh
+docker compose up --build
+```
 
 ## 14. データ追加・参照 API を追加する
 
 ## 15. CDK に RDS を追加する
+
+```
+
+```
 
 ```
 
