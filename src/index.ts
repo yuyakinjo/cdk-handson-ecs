@@ -19,7 +19,7 @@ const server = serve({
     if (url.pathname === '/todos' && req.method === 'PUT') {
       const body = await req.json();
       if (!body.id) return new Response(JSON.stringify({ update: false }));
-      const updated = await db.update(todos).set(body).where(eq(todos.id, body.id)).returning;
+      const updated = await db.update(todos).set(body).where(eq(todos.id, body.id)).returning();
       return new Response(JSON.stringify(updated));
     }
 
