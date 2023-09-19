@@ -1,4 +1,4 @@
-import { RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { InstanceClass, InstanceSize, InstanceType, Port, SubnetType, Vpc, } from "aws-cdk-lib/aws-ec2"; // prettier-ignore
 import { CpuArchitecture, EcrImage, OperatingSystemFamily, } from "aws-cdk-lib/aws-ecs"; // prettier-ignore
 import { ApplicationLoadBalancedFargateService } from 'aws-cdk-lib/aws-ecs-patterns';
@@ -6,8 +6,6 @@ import { AuroraPostgresEngineVersion, ClusterInstance, DatabaseCluster, Database
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
-
-const vpcIdParameterName = 'VpcStackOfVpcId';
 
 export interface CdkStackProps extends StackProps {}
 
@@ -19,6 +17,7 @@ export class CdkStack extends Stack {
 
     const image = EcrImage.fromAsset(localDockerfile);
 
+    const vpcIdParameterName = 'VpcStackOfVpcId';
     const vpcId = StringParameter.valueFromLookup(this, vpcIdParameterName); // ハンズオンのため、VpcStackがないためのワークアラウンド
     const vpc = Vpc.fromLookup(this, Vpc.name, { vpcId }); // vpc上限にひっかかるため、ひとつのvpcを使いまわす
 
@@ -43,7 +42,7 @@ export class CdkStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    const { targetGroup, service } = new ApplicationLoadBalancedFargateService(
+    const { targetGroup, service, loadBalancer } = new ApplicationLoadBalancedFargateService(
       this,
       ApplicationLoadBalancedFargateService.name,
       {
@@ -78,5 +77,12 @@ export class CdkStack extends Stack {
     rds.connections.allowFrom(service, Port.tcp(rds.clusterEndpoint.port));
 
     rds.secret?.grantRead(service.taskDefinition.taskRole);
+
+    new CfnOutput(this, 'URL', { value: `http://${loadBalancer.loadBalancerDnsName}` });
+    new CfnOutput(this, 'Cluster', { value: service.cluster.clusterName });
+    new CfnOutput(this, 'TaskDefinitionARN', { value: service.taskDefinition.taskDefinitionArn });
+    new CfnOutput(this, 'RDSHost', { value: rds.clusterEndpoint.hostname });
+    new CfnOutput(this, 'RDSPort', { value: rds.clusterEndpoint.port.toString() });
+    new CfnOutput(this, 'DocumentName', { value: 'AWS-StartPortForwardingSessionToRemoteHost' });
   }
 }
