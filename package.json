@@ -2,6 +2,9 @@
   "name": "cdk-handson",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "migrate": "drizzle-kit generate:pg"
+  },
   "devDependencies": {
     "@types/pg": "^8.10.2",
     "bun-types": "latest",
