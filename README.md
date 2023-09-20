@@ -951,3 +951,4 @@ bunx cdk destroy
 - [AWS Cloud Development Kit (AWS CDK API)](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-construct-library.html)
   - [AWS CDK とは](https://docs.aws.amazon.com/cdk/v2/guide/home.html)
   - [AWS CDK で始めるアプリケーション開発](https://docs.aws.amazon.com/ja_jp/cdk/latest/guide/getting_started.html)
+- [AWS CDK 概要 (Basic #1)【AWS Black Belt】](https://www.youtube.com/watch?v=BmCpa44rAXI)
