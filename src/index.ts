@@ -10,12 +10,14 @@ const server = serve({
   async fetch(req: Request) {
     const url = new URL(req.url);
 
+    // Create a todo
     if (url.pathname === '/todos' && req.method === 'POST') {
       const body = await req.json();
       const created = await db.insert(todos).values({ title: body.title }).returning();
       return new Response(JSON.stringify(created));
     }
 
+    // Update a todo
     if (url.pathname === '/todos' && req.method === 'PUT') {
       const body = await req.json();
       if (!body.id) return new Response(JSON.stringify({ update: false }));
@@ -23,6 +25,7 @@ const server = serve({
       return new Response(JSON.stringify(updated));
     }
 
+    // Delete a todo
     if (url.pathname === '/todos' && req.method === 'DELETE') {
       const body = await req.json();
       if (!body.id) return new Response(JSON.stringify({ delete: false }));
@@ -30,6 +33,7 @@ const server = serve({
       return new Response(JSON.stringify(deleted));
     }
 
+    // Get all todos
     if (url.pathname === '/todos' && req.method === 'GET') {
       const res = await db.select().from(todos);
       return new Response(JSON.stringify(res));
