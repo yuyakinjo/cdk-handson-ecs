@@ -1,8 +1,10 @@
 import { CfnOutput, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import { InstanceClass, InstanceSize, InstanceType, Port, SubnetType, Vpc, } from "aws-cdk-lib/aws-ec2"; // prettier-ignore
-import { CpuArchitecture, EcrImage, OperatingSystemFamily, } from "aws-cdk-lib/aws-ecs"; // prettier-ignore
+import { CpuArchitecture, EcrImage, OperatingSystemFamily, Secret } from "aws-cdk-lib/aws-ecs"; // prettier-ignore
 import { ApplicationLoadBalancedFargateService } from 'aws-cdk-lib/aws-ecs-patterns';
 import { AuroraPostgresEngineVersion, ClusterInstance, DatabaseCluster, DatabaseClusterEngine, InstanceUpdateBehaviour, ServerlessCluster, } from "aws-cdk-lib/aws-rds"; // prettier-ignore
+import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
@@ -13,9 +15,7 @@ export class CdkStack extends Stack {
   constructor(scope: Construct, id: string, props: CdkStackProps) {
     super(scope, id, props);
 
-    const localDockerfile = join(__dirname, '../../');
-
-    const image = EcrImage.fromAsset(localDockerfile);
+    const image = EcrImage.fromAsset(join(__dirname, '../../'));
 
     const vpcIdParameterName = 'VpcStackOfVpcId';
     const vpcId = StringParameter.valueFromLookup(this, vpcIdParameterName); // ハンズオンのため、VpcStackがないためのワークアラウンド
@@ -42,23 +42,33 @@ export class CdkStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    const { targetGroup, service, loadBalancer } = new ApplicationLoadBalancedFargateService(
+    const subDomain = `${process.env.USER?.toLowerCase()}`;
+    const domainName = process.env.DOMAIN_NAME ?? new Error('DOMAIN_NAME is not defined');
+    const certificateArn = process.env.CERTIFICATE_ARN ?? new Error('CERTIFICATE_ARN is not defined');
+
+    if (!rds.secret || certificateArn || domainName) return;
+
+    const { targetGroup, service, loadBalancer, taskDefinition } = new ApplicationLoadBalancedFargateService(
       this,
       ApplicationLoadBalancedFargateService.name,
       {
         vpc,
         taskImageOptions: {
           image,
-          containerPort: 3000,
           command: ['bun', '--watch', './src/index.ts'],
-          environment: {
-            DB_HOST: rds.secret?.secretValueFromJson('host').unsafeUnwrap() ?? '',
-            DB_PORT: rds.secret?.secretValueFromJson('port').unsafeUnwrap() ?? '',
-            DB_USER: rds.secret?.secretValueFromJson('username').unsafeUnwrap() ?? '',
-            DB_PASS: rds.secret?.secretValueFromJson('password').unsafeUnwrap() ?? '',
-            DB_NAME: rds.secret?.secretValueFromJson('dbname').unsafeUnwrap() ?? '',
+          containerPort: 3000,
+          secrets: {
+            DB_HOST: Secret.fromSecretsManager(rds.secret, 'host'),
+            DB_PORT: Secret.fromSecretsManager(rds.secret, 'port'),
+            DB_USER: Secret.fromSecretsManager(rds.secret, 'username'),
+            DB_PASS: Secret.fromSecretsManager(rds.secret, 'password'),
+            DB_NAME: Secret.fromSecretsManager(rds.secret, 'dbname'),
           },
         },
+        domainName: `${subDomain}.${domainName}`,
+        domainZone: HostedZone.fromLookup(this, 'HostedZone', { domainName }),
+        certificate: Certificate.fromCertificateArn(this, Certificate.name, certificateArn),
+        redirectHTTP: true,
         circuitBreaker: { rollback: true },
         enableExecuteCommand: true,
         // apple silicon mac　で docker build の方は下記を追加
@@ -70,13 +80,11 @@ export class CdkStack extends Stack {
     );
 
     targetGroup.configureHealthCheck({
-      port: '3000',
+      port: `${taskDefinition.defaultContainer?.containerPort}`,
       path: '/',
     });
 
     rds.connections.allowFrom(service, Port.tcp(rds.clusterEndpoint.port));
-
-    rds.secret?.grantRead(service.taskDefinition.taskRole);
 
     new CfnOutput(this, 'URL', { value: `http://${loadBalancer.loadBalancerDnsName}` });
     new CfnOutput(this, 'Cluster', { value: service.cluster.clusterName });
