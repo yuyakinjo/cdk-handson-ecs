@@ -29,7 +29,7 @@ services:
       DB_USER: postgres
       DB_PASS: postgres
       DB_NAME: zon100
-    command: ['bun', '--watch', 'src/index.ts']
+    command: ['bun', 'run', 'start']
 
 volumes:
   ignore:
