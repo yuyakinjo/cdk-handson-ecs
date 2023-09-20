@@ -55,7 +55,7 @@ export class CdkStack extends Stack {
         vpc,
         taskImageOptions: {
           image,
-          command: ['bun', '--watch', './src/index.ts'],
+          command: ['bun', 'run', 'start'],
           containerPort: 3000,
           secrets: {
             DB_HOST: Secret.fromSecretsManager(rds.secret, 'host'),
