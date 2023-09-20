@@ -1,11 +1,10 @@
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import { RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
-import { InstanceClass, InstanceSize, InstanceType, Port, SubnetType, Vpc, } from "aws-cdk-lib/aws-ec2"; // prettier-ignore
+import { InstanceClass, InstanceSize, InstanceType, Port, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2"; // prettier-ignore
 import { CpuArchitecture, EcrImage, OperatingSystemFamily, Secret } from "aws-cdk-lib/aws-ecs"; // prettier-ignore
 import { ApplicationLoadBalancedFargateService } from 'aws-cdk-lib/aws-ecs-patterns';
-import { AuroraPostgresEngineVersion, ClusterInstance, DatabaseCluster, DatabaseClusterEngine, InstanceUpdateBehaviour, ServerlessCluster, } from "aws-cdk-lib/aws-rds"; // prettier-ignore
+import { AuroraPostgresEngineVersion, ClusterInstance, DatabaseCluster, DatabaseClusterEngine, InstanceUpdateBehaviour, } from 'aws-cdk-lib/aws-rds'; // prettier-ignore
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
-import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { join } from 'path';
 
@@ -17,12 +16,18 @@ export class CdkStack extends Stack {
 
     const image = EcrImage.fromAsset(join(__dirname, '../../'));
 
-    const vpcIdParameterName = 'VpcStackOfVpcId';
-    const vpcId = StringParameter.valueFromLookup(this, vpcIdParameterName); // ハンズオンのため、VpcStackがないためのワークアラウンド
-    const vpc = Vpc.fromLookup(this, Vpc.name, { vpcId }); // vpc上限にひっかかるため、ひとつのvpcを使いまわす
+    const vpcId = process.env.VPC_ID ?? new Error('VPC_ID is not defined');
+    const subDomain = process.env.USER?.toLowerCase() ?? new Error('USER is not defined');
+    const domainName = process.env.DOMAIN_NAME ?? new Error('DOMAIN_NAME is not defined');
+    const certificateArn = process.env.CERTIFICATE_ARN ?? new Error('CERTIFICATE_ARN is not defined');
 
-    const rds = new DatabaseCluster(this, ServerlessCluster.name, {
-      vpc,
+    if (vpcId instanceof Error) throw vpcId;
+    if (subDomain instanceof Error) throw subDomain;
+    if (domainName instanceof Error) throw domainName;
+    if (certificateArn instanceof Error) throw certificateArn;
+
+    const rds = new DatabaseCluster(this, DatabaseCluster.name, {
+      vpc: Vpc.fromLookup(this, Vpc.name, { vpcId }),
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
       engine: DatabaseClusterEngine.auroraPostgres({
         version: AuroraPostgresEngineVersion.VER_15_3,
@@ -42,17 +47,13 @@ export class CdkStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    const subDomain = `${process.env.USER?.toLowerCase()}`;
-    const domainName = process.env.DOMAIN_NAME ?? new Error('DOMAIN_NAME is not defined');
-    const certificateArn = process.env.CERTIFICATE_ARN ?? new Error('CERTIFICATE_ARN is not defined');
+    if (!rds.secret) return;
 
-    if (!rds.secret || certificateArn || domainName) return;
-
-    const { targetGroup, service, loadBalancer, taskDefinition } = new ApplicationLoadBalancedFargateService(
+    const { targetGroup, service, taskDefinition } = new ApplicationLoadBalancedFargateService(
       this,
       ApplicationLoadBalancedFargateService.name,
       {
-        vpc,
+        vpc: rds.vpc,
         taskImageOptions: {
           image,
           command: ['bun', 'run', 'start'],
