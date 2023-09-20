@@ -1,4 +1,4 @@
-import { RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import { InstanceClass, InstanceSize, InstanceType, Port, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2"; // prettier-ignore
 import { CpuArchitecture, EcrImage, OperatingSystemFamily, Secret } from "aws-cdk-lib/aws-ecs"; // prettier-ignore
@@ -49,7 +49,7 @@ export class CdkStack extends Stack {
 
     if (!rds.secret) return;
 
-    const { targetGroup, service, taskDefinition } = new ApplicationLoadBalancedFargateService(
+    const { targetGroup, service, taskDefinition, loadBalancer } = new ApplicationLoadBalancedFargateService(
       this,
       ApplicationLoadBalancedFargateService.name,
       {
