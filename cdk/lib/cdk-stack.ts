@@ -16,18 +16,18 @@ export class CdkStack extends Stack {
 
     const image = EcrImage.fromAsset(join(__dirname, '../../'));
 
-    const vpcId = process.env.VPC_ID ?? new Error('VPC_ID is not defined');
     const subDomain = process.env.USER?.toLowerCase() ?? new Error('USER is not defined');
     const domainName = process.env.DOMAIN_NAME ?? new Error('DOMAIN_NAME is not defined');
     const certificateArn = process.env.CERTIFICATE_ARN ?? new Error('CERTIFICATE_ARN is not defined');
 
-    if (vpcId instanceof Error) throw vpcId;
     if (subDomain instanceof Error) throw subDomain;
     if (domainName instanceof Error) throw domainName;
     if (certificateArn instanceof Error) throw certificateArn;
 
+    const vpc = new Vpc(this, Vpc.name, {});
+
     const rds = new DatabaseCluster(this, DatabaseCluster.name, {
-      vpc: Vpc.fromLookup(this, Vpc.name, { vpcId }),
+      vpc,
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
       engine: DatabaseClusterEngine.auroraPostgres({
         version: AuroraPostgresEngineVersion.VER_15_3,
