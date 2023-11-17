@@ -28,7 +28,12 @@ export class CdkStackOIDC extends Stack {
       clientSecret: process.env.CLIENT_SECRET,
     });
 
-    if (!validation.success) throw validation.error;
+    if (!validation.success) {
+      throw {
+        errors: validation.error.flatten().fieldErrors,
+        message: 'Missing required environment variables.',
+      };
+    }
     const { domainName, subDomain, clientId, clientSecret, certificateArn, ...oidcOptions } = validation.data; // prettier-ignore
 
     const { targetGroup, taskDefinition, listener } = new ApplicationLoadBalancedFargateService(
