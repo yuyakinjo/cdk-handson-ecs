@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "bun run --watch ./src/index.ts",
-    "migrate": "drizzle-kit generate:pg"
+    "migrate": "drizzle-kit generate:pg",
+    "oidc": "bun run --watch ./src/oidc.ts"
   },
   "devDependencies": {
     "@types/pg": "^8.10.2",
