@@ -6,6 +6,7 @@ import { ListenerAction, ListenerCondition } from 'aws-cdk-lib/aws-elasticloadba
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { Construct } from 'constructs';
 import { join } from 'path';
+import { envSchema } from './env-validation';
 
 export interface CdkStackProps extends StackProps {}
 
@@ -15,26 +16,20 @@ export class CdkStackOIDC extends Stack {
 
     const image = EcrImage.fromAsset(join(__dirname, '../../'));
 
-    const subDomain = process.env.SUB_DOMEIN?.toLowerCase() ?? new Error('SUB_DOMEIN is not defined');
-    const domainName = process.env.DOMAIN_NAME ?? new Error('DOMAIN_NAME is not defined');
-    const certificateArn = process.env.CERTIFICATE_ARN ?? new Error('CERTIFICATE_ARN is not defined');
-    const issuer = process.env.ISSUER ?? new Error('ISSUER is not defined');
-    const authorizationEndpoint =
-      process.env.AUTHORIZATION_ENDPOINT ?? new Error('AUTHORIZATION_ENDPOINT is not defined');
-    const tokenEndpoint = process.env.TOKEN_ENDPOINT ?? new Error('TOKEN_ENDPOINT is not defined');
-    const userInfoEndpoint = process.env.USERINFO_ENDPOINT ?? new Error('USERINFO_ENDPOINT is not defined');
-    const clientId = process.env.CLIENT_ID ?? new Error('CLIENT_ID is not defined');
-    const clientSecret = process.env.CLIENT_SECRET ?? new Error('CLIENT_SECRET is not defined');
+    const validation = envSchema.safeParse({
+      subDomain: process.env.SUB_DOMEIN?.toLowerCase(),
+      domainName: process.env.DOMAIN_NAME,
+      certificateArn: process.env.CERTIFICATE_ARN,
+      issuer: process.env.ISSUER,
+      authorizationEndpoint: process.env.AUTHORIZATION_ENDPOINT,
+      tokenEndpoint: process.env.TOKEN_ENDPOINT,
+      userInfoEndpoint: process.env.USERINFO_ENDPOINT,
+      clientId: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+    });
 
-    if (subDomain instanceof Error) throw subDomain;
-    if (domainName instanceof Error) throw domainName;
-    if (certificateArn instanceof Error) throw certificateArn;
-    if (issuer instanceof Error) throw issuer;
-    if (authorizationEndpoint instanceof Error) throw authorizationEndpoint;
-    if (tokenEndpoint instanceof Error) throw tokenEndpoint;
-    if (userInfoEndpoint instanceof Error) throw userInfoEndpoint;
-    if (clientId instanceof Error) throw clientId;
-    if (clientSecret instanceof Error) throw clientSecret;
+    if (!validation.success) throw validation.error;
+    const { domainName, subDomain, clientId, clientSecret, certificateArn, ...oidcOptions } = validation.data; // prettier-ignore
 
     const { targetGroup, taskDefinition, listener } = new ApplicationLoadBalancedFargateService(
       this,
@@ -67,10 +62,7 @@ export class CdkStackOIDC extends Stack {
       priority: 2,
       conditions: [ListenerCondition.hostHeaders([`${subDomain}.${domainName}`])],
       action: ListenerAction.authenticateOidc({
-        issuer,
-        authorizationEndpoint,
-        tokenEndpoint,
-        userInfoEndpoint,
+        ...oidcOptions,
         clientId,
         clientSecret: SecretValue.unsafePlainText(clientSecret),
         next: ListenerAction.forward([targetGroup]),
